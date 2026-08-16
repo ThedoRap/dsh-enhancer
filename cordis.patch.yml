@@ -1,0 +1,44 @@
+# dsh-enhancer bundle patch: mounts the DSH增强插件 into the host composition.
+#
+# The plugin registers:
+#   - model availability probe + automatic adaptation on the `llm/stream`
+#     waterfall (MiniMax-M3-style thinking-parameter fixes, fallback models);
+#   - image-capable request routing (pictures work even when the built-in
+#     DeepSeek adapter would reject them; optional visionModel override);
+#   - the `model_probe` agent tool (re-run the probe on demand);
+#   - an automatic cache-hit display precision patch for the conversation UI.
+#
+# Install: add this package to the profile (pnpm link / dsh plugin add), list
+# it in dsh.profile.bundles, then restart dsh.
+- insert:
+    - id: dsh-enhancer
+      name: dsh-enhancer
+      config:
+        # 图片识别固定使用的模型；留空 = 跟随当前请求模型（探测显示中转下
+        # 绝大多数模型本身支持图片）。例如指定 "claude-sonnet-4-6"。
+        visionModel: ''
+        # 探测失败且无法修正的模型自动降级的目标（可选）：
+        #   fallbacks:
+        #     MiniMax-M3: MiniMax-M2.7
+        fallbacks: {}
+        # 自动修正 thinking 参数不兼容的模型（MiniMax-M3 → adaptive）
+        thinkingFix: true
+        # Moonshot 系模型（kimi-k3 等）工具 schema 兼容：DSH 工具参数是
+        # draft-07 风格 $ref（#/properties/...），Moonshot 校验器只接受
+        # #/$defs/ 开头，不改写则 kimi 模型一开工具就 400。插件自动把
+        # 引用目标提升到根级 $defs 并改写；按模型名自动识别（含
+        # kimi/moonshot），也可用 moonshotModels 显式指定（如中转自定义
+        # 别名）。关闭请设 false。
+        moonshotSchemaFix: true
+        # 强制使用 Moonshot 兼容 schema 的模型 id/前缀列表（可选）：
+        #   moonshotModels:
+        #     - kimi-k3
+        moonshotModels: []
+        # 启动时自动探测全部模型
+        autoProbeOnStart: true
+        # 请求/上传处理超时（毫秒）：适配请求（含图片上传）的明确上限，
+        # 与 DSH 侧取消信号融合，到点主动中断并报 REQUEST_TIMEOUT。
+        # 默认 600000 = 10 分钟。中转/上游处理含图请求较慢时可调大。
+        requestTimeoutMs: 600000
+        # 自动应用缓存命中率两位小数补丁
+        applyClientPatch: true
