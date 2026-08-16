@@ -1,7 +1,7 @@
 {
   "name": "dsh-enhancer",
   "version": "0.1.0",
-  "description": "DSH增强插件：模型可用性自动探测与适配（thinking参数修正/图片识别自动路由/不可用模型降级/Moonshot工具schema兼容）、缓存命中率显示精度修正（两位小数）、Windows原生目录选择器UTF-16路径截断修复、附件图片格式扩展（取消PNG/JPG/WebP/GIF四格式限制）",
+  "description": "DSH增强插件：模型可用性自动探测与适配（thinking参数修正/图片识别自动路由/不可用模型降级/Moonshot工具schema兼容）、缓存命中率显示精度修正（两位小数）、Windows原生目录选择器UTF-16路径截断修复、附件图片格式扩展（9种格式，发送前统一转PNG）、文本/代码文件直接作为文本发送、单图上传上限5MB提升至100MB",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
