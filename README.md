@@ -4,16 +4,11 @@
 
 ## 功能（解决了什么 / 原因）
 
-| # | 解决什么 | 原因 |
+| 模块 | 解决什么 | 原因 |
 | --- | --- | --- |
-| 1 | 模型全可用：自动探测并修正参数不兼容的模型、不可用自动降级 | 中转模型（如 MiniMax-M3）不接受 DSH 默认 thinking 参数，直接调用会 400 |
-| 2 | 任何模型都能看图，可指定 `visionModel` | DSH 内置 DeepSeek 适配器是 text-only，图片一律被拒 |
-| 3 | kimi 系模型能正常用工具 | Moonshot 只接受 `#/$defs/` 引用，DSH 发 draft-07 风格 schema 会被拒 |
-| 4 | 缓存命中率显示精确到两位小数 | 原实现 Math.round 取整，95.6% 显示成 96% |
-| 5 | 添加工作区时中文路径不再被截断 | Windows 原生目录选择器把「销」这类字符（低字节为 0）误判为字符串结尾，「核销」变「核」 |
-| 6 | 图片支持 9 种格式：PNG/JPEG/WebP/GIF/AVIF/TIFF/SVG/HEIC/HEIF | 原附件系统只收 4 种；非常规格式发送前统一转成 PNG，模型更容易接受 |
-| 7 | 可直接上传 .txt/.py/.php/.h/.js/.md/.json/.csv 等文本/代码文件 | 原系统只能传图片，文本文件直接报 "unsupported image media type"；现改为读取内容作为文本发给模型（超 512KB 截断） |
-| 8 | 单图上传上限从 5MB 提到 100MB | 原默认 5MB 太小；上限仍可在配置中覆盖 |
+| 模型适配 | 每个模型都真正可用：自动探测并修正参数不兼容的模型、不可用自动降级、任何模型都能看图（可指定 `visionModel`）、kimi 系模型能正常用工具 | 中转模型（如 MiniMax-M3）不接受 DSH 默认 thinking 参数会 400；DSH 内置适配器 text-only 拒图；Moonshot 只接受 `#/$defs/` 引用、DSH 发 draft-07 schema 会被拒 |
+| 附件支持 | 图片支持 9 种格式（PNG/JPEG/WebP/GIF/AVIF/TIFF/SVG/HEIC/HEIF，发送前统一转 PNG）；可直接上传 .txt/.py/.php/.h/.js/.md/.json/.csv 等文本/代码文件（读内容作为文本发给模型，超 512KB 截断）；单图上限 5MB → 100MB | 原附件系统只收 4 种图片格式、文本文件直接报 "unsupported image media type"、单图默认 5MB 太小 |
+| 体验修复 | 缓存命中率显示精确到两位小数；添加工作区时中文路径不再被截断 | Math.round 取整导致 95.6% 显示成 96%；Windows 原生目录选择器把「销」这类字符（低字节为 0）误判为字符串结尾，「核销」变「核」 |
 
 ## 安装
 
