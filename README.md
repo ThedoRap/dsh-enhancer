@@ -37,10 +37,16 @@
 - 本插件自动给 worker 打补丁，改为**仅当完整 `0x0000` 码元出现时才结束扫描**（ASCII 路径不受影响）。
 - 补丁幂等，首次打补丁前自动备份为 `*.dsh-enhancer.bak`；`node scripts/patch-client.mjs --revert` 一并还原。
 
+### 7. 附件图片格式扩展（取消四格式限制）
+- DSH 附件系统**仅接受 PNG/JPG/WebP/GIF**（GUI 上传、read_image 工具、宿主/客户端 schema 校验、会话导出共 14 处硬编码白名单），其他格式的图片一律被拒（"unsupported image media type" / INVALID_IMAGE）。
+- 本插件把白名单扩展为 **PNG/JPEG/WebP/GIF/AVIF/TIFF/SVG/HEIC/HEIF/JXL/BMP/ICO**（与 sharp 可解码的光栅格式对齐）：上传、粘贴、拖拽、`read_image` 工具均可使用这些格式；HEIC 在浏览器侧自动规范化为 `image/heif` 再校验，避免类型比对失败。
+- 补丁覆盖 6 个 bundle（attachment-local / host-apiproxy 主 bundle 与 type 层 / client-connection / client-ui-conversation / tool-fs），幂等并自动备份；**浏览器侧补丁需要硬刷新页面（Ctrl+F5）后生效**。
+- 注意：插件会把图片按原始格式直接转发给模型 API，**具体模型/中转对 AVIF/TIFF/SVG/HEIC 等格式的接受度不一**；若某模型拒绝，转成 PNG 再传即可。浏览器内预览同样受浏览器支持度影响（如 Chrome 不渲染 TIFF）。
+
 ## 工作原理
 
 - **模型适配**：插件挂在 `llm/stream` 事件瀑布上，只拦截目标 provider 的请求；需要修正的模型走插件自带的中继实现（与内置 DeepSeek 适配器同协议：SSE 流、usage、tool-call、reasoning 均一致），其余请求原样放行。
-- **自动补丁**：部分能力（图片准入、缓存精度、目录选择器修复）需要修改 DSH 安装目录下的 bundle 文件。所有补丁**幂等**：已打补丁的文件跳过；首次打补丁前自动备份为 `<file>.dsh-enhancer.bak`，替换内容内嵌 `/*dsh-enhancer:<name>*/` 标记。DSH 升级覆盖文件后，插件启动时会自动重打。
+- **自动补丁**：部分能力（图片准入、缓存精度、目录选择器修复、图片格式扩展）需要修改 DSH 安装目录下的 bundle 文件。所有补丁**幂等**：已打补丁的文件跳过；首次打补丁前自动备份为 `<file>.dsh-enhancer.bak`，替换内容内嵌 `/*dsh-enhancer:<name>*/` 标记。DSH 升级覆盖文件后，插件启动时会自动重打。
 
 ## 安装
 
@@ -82,7 +88,7 @@ node <dsh-enhancer 目录>\scripts\patch-client.mjs
 | `fallbacks` | `{}` | 不可用模型的降级目标，如 `{ "MiniMax-M3": "MiniMax-M2.7" }` |
 | `moonshotSchemaFix` | `true` | 把工具 schema 改写为 `#/$defs/` 引用（Moonshot 系模型必需） |
 | `moonshotModels` | `[]` | 强制使用 Moonshot 兼容 schema 的模型 id/前缀，如 `["kimi-k3"]`（默认按名称自动识别 + 启动探测自动检测） |
-| `applyClientPatch` | `true` | 自动应用宿主/客户端补丁（缓存精度、图片准入、目录选择器修复） |
+| `applyClientPatch` | `true` | 自动应用宿主/客户端补丁（缓存精度、图片准入、目录选择器修复、图片格式扩展） |
 
 `cordis.patch.yml` 内的注释给出了完整的配置示例。
 
@@ -96,9 +102,10 @@ node scripts\patch-client.mjs --file <path>    # 指定 conversation client.js �
 
 ## 验证
 
-- 启动后日志出现 `dsh-enhancer: patches — cache-hit: … | image-admission(…): … | utf16-terminator(worker): …` 表示补丁状态；
+- 启动后日志出现 `dsh-enhancer: patches — cache-hit: … | image-admission(…): … | utf16-terminator(worker): … | media-types(…): …` 表示补丁状态；
 - 会话里调用 `model_probe` 工具可随时重测全部模型并输出 Markdown 报告；
-- 修复验证：Windows 下添加工作区时选择以「销」「一」等字结尾的文件夹（如 `…\核销`），应能正常添加。
+- 修复验证：Windows 下添加工作区时选择以「销」「一」等字结尾的文件夹（如 `…\核销`），应能正常添加；
+- 格式验证：硬刷新页面后上传/拖拽一张 **AVIF、BMP、TIFF 或 SVG** 图片，应能正常进入对话（不再报 "unsupported image media type"）。
 
 ## 故障排查
 
@@ -109,12 +116,13 @@ node scripts\patch-client.mjs --file <path>    # 指定 conversation client.js �
 | 图片上传后报错 | 确认 `applyClientPatch` 生效（图片准入补丁）；非图片文件仍受 DSH 附件系统类型限制 |
 | 请求报 `REQUEST_TIMEOUT` | 调大 `requestTimeoutMs`，并同步调大中转渠道超时 |
 | 添加工作区报 `workspace-invalid-path` | 目录选择器补丁未生效时会出现（路径被 UTF-16 截断）；重跑补丁 CLI |
+| 上传其他格式图片仍被拒 | 浏览器侧补丁需要**硬刷新页面（Ctrl+F5）**；确认日志有 `media-types(…): patched`；若报错来自模型 API（如该模型不支持 AVIF/TIFF），转成 PNG 再传 |
 
 ## 开发
 
 ```
 lib/index.js              插件主体：瀑布适配、探测、工具注册
-lib/patch-client.js       补丁集：缓存精度 / 图片准入 / UTF-16 终止符
+lib/patch-client.js       补丁集：缓存精度 / 图片准入 / UTF-16 终止符 / 图片格式扩展
 scripts/patch-client.mjs  补丁 CLI
 test/                     回归测试（node:test 风格，离线可跑）
 ```
@@ -124,12 +132,13 @@ node test\utf16-terminator.test.mjs
 node test\image-serialize.test.mjs
 node test\schema-sanitize.test.mjs
 node test\request-timeout.test.mjs
+node test\media-types.test.mjs
 ```
 
 ## 已知限制
 
 - 补丁修改的是 dsh 安装目录下的 bundle 文件，升级 `@deepseek-ai/dsh` 后可能被还原，重新启动插件会自动重打（文件内容变化后若匹配失败，日志会提示，可手动运行 patch 脚本）。
-- 非图片文件上传仍受 DSH 内置附件系统限制（`dsh-attachment-local` 仅接受 png/jpeg/webp/gif）。
+- 图片附件支持格式已扩展为 PNG/JPEG/WebP/GIF/AVIF/TIFF/SVG/HEIC/HEIF/JXL/BMP/ICO；**非图片文件**（PDF/文档/压缩包等）仍不作为附件接受，且具体模型 API 对不同格式的接受度不一（见功能 7）。
 - 插件面向 `llm-deepseek` 中转场景（OpenAI 兼容 `/chat/completions`）；其他 provider 路由需自行确认兼容性。
 
 ## License
